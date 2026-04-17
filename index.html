@@ -445,7 +445,10 @@ function render(){
   const hdr=h('div',{class:'fr sec',style:{justifyContent:'space-between',gap:'10px'}});
   const tabbar=h('div',{class:'tabbar'});
   [['dash','대시보드'],['weekly','주간'],['leave','휴가'],['list','리스트'],['sync','연동']].forEach(([id,lb])=>
-    tabbar.appendChild(h('div',{class:`tabit${view===id?' on':''}`,onclick:()=>{view=id;render();}},lb)));
+    tabbar.appendChild(h('div',{class:`tabit${view===id?' on':''}`,onclick:()=>{
+      if(view==='sync'&&id!=='sync')syncUnlocked=false; // sync 탭 나갈 때 자동 잠금
+      view=id;render();
+    }},lb)));
 
   hdr.append(
     h('div',{class:'fr',style:{gap:'10px'}},[
@@ -1001,9 +1004,43 @@ function renderList(app,st){
 }
 
 // ══════════════════════════════════════════════════════
-// 연동 탭
+// 연동 탭 — 비밀번호 잠금
+// 비밀번호 변경: SYNC_PW 값만 수정하세요
 // ══════════════════════════════════════════════════════
+const SYNC_PW = 'sooki2026';
+let syncUnlocked = false;
+
 function renderSync(app){
+  // ── 잠금 화면 ──
+  if(!syncUnlocked){
+    const lockCard=h('div',{class:'card cp',style:{maxWidth:'300px',margin:'48px auto',textAlign:'center'}});
+    lockCard.append(
+      h('div',{style:{fontSize:'32px',marginBottom:'10px'}},'🔒'),
+      h('div',{class:'ct',style:{marginBottom:'6px'}},'연동 설정'),
+      h('div',{style:{fontSize:'11px',color:'var(--tx3)',marginBottom:'16px'}},
+        '이 탭은 비밀번호로 보호됩니다'),
+    );
+    const pwInp=h('input',{type:'password',placeholder:'비밀번호 입력',style:{marginBottom:'8px',textAlign:'center'}});
+    const errMsg=h('div',{style:{fontSize:'11px',color:'var(--rd)',marginBottom:'10px',minHeight:'16px'}});
+    const tryUnlock=()=>{
+      if(pwInp.value===SYNC_PW){syncUnlocked=true;render();}
+      else{errMsg.textContent='비밀번호가 틀렸습니다';pwInp.value='';pwInp.focus();}
+    };
+    pwInp.addEventListener('keydown',e=>{if(e.key==='Enter')tryUnlock();});
+    lockCard.append(pwInp,errMsg,
+      h('button',{class:'btn btn-gn',style:{width:'100%'},onclick:tryUnlock},'확인')
+    );
+    app.appendChild(lockCard);
+    setTimeout(()=>pwInp.focus(),50);
+    return;
+  }
+
+  // 잠금 해제 후 상단에 잠금 버튼 표시
+  const lockBtn=h('button',{class:'btn btn-sm',style:{float:'right',marginBottom:'8px'},
+    onclick:()=>{syncUnlocked=false;render();}
+  },'🔒 잠금');
+  app.appendChild(lockBtn);
+
   // GAS URL 설정
   const gasCard=h('div',{class:'card cp sec'});
   gasCard.appendChild(h('div',{class:'ct'},'📊 Google Sheets 연동'));
