@@ -459,12 +459,31 @@ function calcWeekly(){
 // ══════════════════════════════════════════════════════
 // 메인 렌더
 // ══════════════════════════════════════════════════════
+function isTokenExpired(token){
+  if(!token) return true;
+  try{
+    const decoded = atob(token);
+    const parts = decoded.split('|');
+    if(parts.length < 3) return true;
+    const today = new Date();
+    const d = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`;
+    return parts[2] !== d;
+  }catch(e){ return true; }
+}
+
 function render(){
   const root=document.getElementById('root');
   root.innerHTML='';
 
   // 로그인 안 된 경우
   if(!session){
+    renderLogin(root);
+    return;
+  }
+
+  // 토큰 만료 시 자동 로그아웃
+  if(isTokenExpired(session.token)){
+    clearSession();
     renderLogin(root);
     return;
   }
