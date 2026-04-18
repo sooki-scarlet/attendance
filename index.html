@@ -462,7 +462,11 @@ function calcWeekly(){
 function isTokenExpired(token){
   if(!token) return true;
   try{
-    const decoded = atob(token);
+    // GAS base64Encode(UTF-8) → 브라우저에서 안전하게 디코딩
+    const bin = atob(token);
+    const bytes = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+    const decoded = new TextDecoder('utf-8').decode(bytes);
     const parts = decoded.split('|');
     if(parts.length < 3) return true;
     const today = new Date();
