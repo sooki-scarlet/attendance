@@ -412,12 +412,12 @@ function calcStats(){
   const annUsedRecs=recs.filter(r=>r.status==='확정').reduce((s,r)=>{if(r.type==='연차')return s+1;if(r.type==='반차')return s+0.5;return s;},0);
   const annUsedLv=leaves.filter(l=>l.type==='연차'&&l.category==='사용차감').reduce((s,l)=>s+l.days,0);
   const annTotal=annBase+annAdded;const annUsed=annUsedRecs+annUsedLv;
+  const _dailyH = numCfg(cfg.dailyH, 8);
   const compBase=getLeaveBase('보상휴가');
   const compAdded=leaves.filter(l=>l.type==='보상휴가'&&l.category==='추가발생').reduce((s,l)=>s+l.days,0);
   const compUsedRecs=recs.filter(r=>r.type==='보상휴가'&&r.status==='확정').reduce((s,r)=>s+r.hours,0)/_dailyH;
   const compUsedLv=leaves.filter(l=>l.type==='보상휴가'&&l.category==='사용차감').reduce((s,l)=>s+l.days,0);
   const compTotal=compBase+compAdded;const compUsed=compUsedRecs+compUsedLv;
-  const _dailyH = numCfg(cfg.dailyH, 8);
   const holEarned=recs.filter(r=>r.type==='휴일근무'&&r.status==='확정').reduce((s,r)=>s+r.hours,0)/_dailyH;
   const altUsed=recs.filter(r=>r.type==='대체휴무'&&r.status==='확정').reduce((s,r)=>s+r.hours,0)/_dailyH;
   const holRecs=recs.filter(r=>r.type==='휴일근무'&&r.status==='확정');
