@@ -399,6 +399,8 @@ function calcStats(){
   const act=recs.filter(r=>showAll||r.status==='확정');
   const mo=act.filter(r=>r.date.startsWith(fm));
   const td=todayDS();
+  // 소정근로시간 (모든 계산에서 공통 사용)
+  const _dailyH=numCfg(cfg.dailyH,8);
   // 월 시간외: 연장근무만 (야간·휴일근무는 별도 처리)
   const ot=mo.filter(r=>r.type==='연장근무').reduce((s,r)=>s+r.hours,0);
   const dw=new Date().getDay();
@@ -409,10 +411,15 @@ function calcStats(){
   const thisWkH=Math.max(0,wDays*numCfg(cfg.dailyH,8)+wRecs.filter(r=>isAdd(r.type)).reduce((s,r)=>s+r.hours,0)-wRecs.filter(r=>isSub(r.type)).reduce((s,r)=>s+r.hours,0));
   const annBase=getLeaveBase('연차');
   const annAdded=leaves.filter(l=>l.type==='연차'&&l.category==='추가발생').reduce((s,l)=>s+l.days,0);
-  const annUsedRecs=recs.filter(r=>r.status==='확정').reduce((s,r)=>{if(r.type==='연차')return s+1;if(r.type==='반차')return s+0.5;return s;},0);
+  const annUsedRecs=recs.filter(r=>r.status==='확정').reduce((s,r)=>{
+    if(r.type==='연차') return s+1;
+    if(r.type==='반차') return s+0.5;
+    // 외출·조퇴: 시간 ÷ 소정근로시간으로 일수 환산
+    if(r.type==='외출'||r.type==='조퇴') return s+(r.hours/_dailyH);
+    return s;
+  },0);
   const annUsedLv=leaves.filter(l=>l.type==='연차'&&l.category==='사용차감').reduce((s,l)=>s+l.days,0);
   const annTotal=annBase+annAdded;const annUsed=annUsedRecs+annUsedLv;
-  const _dailyH = numCfg(cfg.dailyH, 8);
   const compBase=getLeaveBase('보상휴가');
   const compAdded=leaves.filter(l=>l.type==='보상휴가'&&l.category==='추가발생').reduce((s,l)=>s+l.days,0);
   const compUsedRecs=recs.filter(r=>r.type==='보상휴가'&&r.status==='확정').reduce((s,r)=>s+r.hours,0)/_dailyH;
@@ -1005,9 +1012,26 @@ function renderList(app,st){
     const r1=h('div',{});r1.append(h('div',{style:{fontSize:'10px',color:'var(--tx3)',marginBottom:'3px'}},'날짜'),h('input',{type:'date',value:newRec.date||'',onchange:e=>{newRec.date=e.target.value;}}));
     const r2=h('div',{style:{display:'grid',gridTemplateColumns:'1fr 80px',gap:'8px',marginTop:'8px'}});
     const typeLb=h('div',{});typeLb.appendChild(h('div',{style:{fontSize:'10px',color:'var(--tx3)',marginBottom:'3px'}},'유형'));
-    const typeS=h('select',{onchange:e=>{newRec.type=e.target.value;const lr=document.getElementById('linked-row2');if(lr)lr.style.display=e.target.value==='대체휴무'?'block':'none';}});
+    const typeS=h('select',{onchange:e=>{
+      newRec.type=e.target.value;
+      // 연차·반차는 시간 자동 고정
+      const hoursMap={'연차':8,'반차':4};
+      if(hoursMap[e.target.value]){
+        newRec.hours=hoursMap[e.target.value];
+        const hi=document.getElementById('hours-input');
+        if(hi){hi.value=hoursMap[e.target.value];hi.readOnly=true;hi.style.opacity='0.5';}
+      }else{
+        const hi=document.getElementById('hours-input');
+        if(hi){hi.readOnly=false;hi.style.opacity='1';}
+      }
+      const lr=document.getElementById('linked-row2');
+      if(lr)lr.style.display=e.target.value==='대체휴무'?'block':'none';
+    }});
     TL.forEach(t=>{const o=h('option',{value:t},t);if(t===newRec.type)o.selected=true;typeS.appendChild(o);});typeLb.appendChild(typeS);
-    const hLb=h('div',{});hLb.append(h('div',{style:{fontSize:'10px',color:'var(--tx3)',marginBottom:'3px'}},'시간(h)'),h('input',{type:'number',value:newRec.hours,step:'0.5',min:'0',onchange:e=>{newRec.hours=e.target.value;}}));
+    const hLb=h('div',{});hLb.append(h('div',{style:{fontSize:'10px',color:'var(--tx3)',marginBottom:'3px'}},'시간(h)'),h('input',{id:'hours-input',type:'number',value:newRec.hours,step:'0.5',min:'0',
+      style:{opacity:(['연차','반차'].includes(newRec.type)?'0.5':'1')},
+      readonly:['연차','반차'].includes(newRec.type)?'true':undefined,
+      onchange:e=>{newRec.hours=e.target.value;}}));
     r2.append(typeLb,hLb);
     const r3=h('div',{style:{marginTop:'8px'}});r3.append(h('div',{style:{fontSize:'10px',color:'var(--tx3)',marginBottom:'3px'}},'내용'),h('input',{type:'text',value:newRec.memo,placeholder:'메모',onchange:e=>{newRec.memo=e.target.value;}}));
     const r4=h('div',{id:'linked-row2',style:{marginTop:'8px',display:newRec.type==='대체휴무'?'block':'none'}});
