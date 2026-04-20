@@ -1084,9 +1084,33 @@ function renderList(app,st){
 function doExport(){
   const[fy,fm2]=fm.split('-').map(Number);
   const weekly=calcWeekly();const st=calcStats();
-  let csv=`[${session.name} 근태기록] ${fm}\n\n[주간근로시간]\n이름,주차,해당일,소정근로시간(정상근무),초과근무(연장),야간근무(당직),휴일근무(시간),기타(프리데이 등),근무시간 계\n`;
+
+  // ── 1. 주간 근로시간 ──
+  let csv=`[${session.name} 근태기록] ${fm}\n\n`;
+  csv+=`[주간근로시간]\n`;
+  csv+=`이름,주차,해당일,소정근로시간(정상근무),초과근무(연장),야간근무(당직),휴일근무(시간),기타(프리데이 등),근무시간 계\n`;
   weekly.forEach(w=>csv+=`${session.name},${w.week},${w.label},${w.schedH},${w.extH},${w.nightH},${w.holH},${w.etcH},${w.total}\n`);
-  csv+=`\n[휴가현황]\n연차,${st.annTotal.toFixed(1)},${st.annUsed.toFixed(1)},${st.annRemain.toFixed(1)}\n보상휴가,${st.compTotal.toFixed(1)},${st.compUsed.toFixed(1)},${st.compRemain.toFixed(1)}\n대체휴가,${st.holEarned.toFixed(1)},${st.altUsed.toFixed(1)},${st.altRemain.toFixed(1)}\n`;
+  csv+=`,합계,,${weekly.reduce((s,w)=>s+w.schedH,0)},${weekly.reduce((s,w)=>s+w.extH,0)},${weekly.reduce((s,w)=>s+w.nightH,0)},${weekly.reduce((s,w)=>s+w.holH,0)},${weekly.reduce((s,w)=>s+w.etcH,0)},${weekly.reduce((s,w)=>s+w.total,0)}\n`;
+
+  // ── 2. 휴가 현황 ──
+  csv+=`\n[휴가현황]\n구분,총부여(일),사용(일),잔여(일)\n`;
+  csv+=`연차,${st.annTotal.toFixed(1)},${st.annUsed.toFixed(1)},${st.annRemain.toFixed(1)}\n`;
+  csv+=`보상휴가,${st.compTotal.toFixed(1)},${st.compUsed.toFixed(1)},${st.compRemain.toFixed(1)}\n`;
+  csv+=`대체휴가,${st.holEarned.toFixed(1)},${st.altUsed.toFixed(1)},${st.altRemain.toFixed(1)}\n`;
+
+  // ── 3. 이달 상세 기록 ──
+  const moRecs=recs.filter(r=>r.date.startsWith(fm)).sort((a,b)=>a.date.localeCompare(b.date));
+  csv+=`\n[${fm} 상세 기록]\n`;
+  csv+=`날짜,유형,내용,시간(h),가산/차감,기안,상태\n`;
+  moRecs.forEach(r=>{
+    const sign=isSub(r.type)?`-${r.hours}`:`+${r.hours}`;
+    const kind=isSub(r.type)?'차감(-)':'가산(+)';
+    csv+=`${r.date},${r.type},"${r.memo||''}",${sign},${kind},${r.draft},${r.status}\n`;
+  });
+  // 소계
+  const addTotal=moRecs.filter(r=>isAdd(r.type)).reduce((s,r)=>s+r.hours,0);
+  const subTotal=moRecs.filter(r=>isSub(r.type)).reduce((s,r)=>s+r.hours,0);
+  csv+=`,,합계,+${addTotal}h / -${subTotal}h,,,\n`;
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));a.download=`근태_${fm}_${session.name}.csv`;a.click();toast('CSV 저장 완료 ✓');
 }
 
